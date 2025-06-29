@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pothole Detection System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      font-weight: 300;
+    }
+
+    .header p {
+      font-size: 1.1em;
+      opacity: 0.9;
+    }
+
+    .main-content {
+      padding: 40px;
+    }
+
+    .upload-section {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .upload-area {
+      border: 3px dashed #3498db;
+      border-radius: 15px;
+      padding: 60px 20px;
+      margin: 20px 0;
+      background: #f8f9fa;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-area:hover {
+      border-color: #2980b9;
+      background: #e3f2fd;
+    }
+
+    .upload-area.dragover {
+      border-color: #27ae60;
+      background: #e8f5e8;
+    }
+
+    .upload-icon {
+      font-size: 4em;
+      color: #3498db;
+      margin-bottom: 20px;
+    }
+
+    .upload-text {
+      font-size: 1.2em;
+      color: #555;
+      margin-bottom: 15px;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .upload-btn {
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 25px;
+      font-size: 1.1em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin: 10px;
+    }
+
+    .upload-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+    }
+
+    .progress-container {
+      display: none;
+      margin: 20px 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 20px;
+      background: #ecf0f1;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3498db, #2ecc71);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .results-section {
+      display: none;
+      margin-top: 40px;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 20px;
+    }
+
+    .result-card {
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .result-image {
+      width: 100%;
+      max-width: 500px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .detection-list {
+      list-style: none;
+      margin-top: 15px;
+    }
+
+    .detection-item {
+      background: white;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 10px;
+      border-left: 4px solid #3498db;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .detection-item h4 {
+      color: #2c3e50;
+      margin-bottom: 8px;
+    }
+
+    .detection-item p {
+      color: #555;
+      margin: 5px 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 15px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2em;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 0.9em;
+      opacity: 0.9;
+    }
+
+    .download-btn {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 20px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+      margin: 10px 5px;
+    }
+
+    .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 15px rgba(39, 174, 96, 0.3);
+    }
+
+    .error-message {
+      background: #e74c3c;
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      display: none;
+    }
+
+    .success-message {
+      background: #27ae60;
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      display: none;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .results-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 2em;
+      }
+
+      .main-content {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚧 Pothole Detection System</h1>
+      <p>Upload images or videos to detect and analyze potholes with AI-powered depth estimation</p>
+    </div>
+
+    <div class="main-content">
+      <div class="upload-section">
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">📁</div>
+          <div class="upload-text">
+            <strong>Drag and drop your file here</strong><br>
+            or click to browse
+          </div>
+          <p style="color: #777; font-size: 0.9em;">
+            Supported formats: JPG, PNG, GIF, BMP, MP4, AVI, MOV, MKV<br>
+            Maximum file size: 16MB
+          </p>
+        </div>
+
+        <input type="file" id="fileInput" class="file-input" accept="image/*,video/*">
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+          Choose File
+        </button>
+      </div>
+
+      <div class="progress-container" id="progressContainer">
+        <h3>Processing...</h3>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div class="error-message" id="errorMessage"></div>
+      <div class="success-message" id="successMessage"></div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Processing your file... This may take a few moments.</p>
+      </div>
+
+      <div class="results-section" id="resultsSection">
+        <h2>Detection Results</h2>
+
+        <div class="results-grid">
+          <div class="result-card">
+            <h3>Processed Media</h3>
+            <img id="resultImage" class="result-image" style="display: none;">
+            <div id="videoResult" style="display: none;">
+              <p>Video processing completed!</p>
+              <a id="downloadVideo" class="download-btn" href="#" download>
+                📹 Download Processed Video
+              </a>
+            </div>
+          </div>
+
+          <div class="result-card">
+            <h3>Detections</h3>
+            <ul id="detectionList" class="detection-list"></ul>
+          </div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <div style="text-align: center; margin-top: 30px;">
+          <a id="downloadCsv" class="download-btn" href="#" download>
+            📊 Download CSV Report
+          </a>
+          <a id="downloadZip" class="download-btn" href="#" download>
+            📦 Download All Results
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFill = document.getElementById('progressFill');
+    const loading = document.getElementById('loading');
+    const resultsSection = document.getElementById('resultsSection');
+    const errorMessage = document.getElementById('errorMessage');
+    const successMessage = document.getElementById('successMessage');
+
+    // Drag and drop functionality
+    uploadArea.addEventListener('dragover', (e) =>
+    {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () =>
+    {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) =>
+    {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0)
+      {
+        handleFile(files[0]);
+      }
+    });
+
+    uploadArea.addEventListener('click', () =>
+    {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) =>
+    {
+      if (e.target.files.length > 0)
+      {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    function handleFile(file)
+    {
+      // Validate file size
+      if (file.size > 16 * 1024 * 1024)
+      {
+        showError('File size exceeds 16MB limit');
+        return;
+      }
+
+      // Validate file type - check both MIME type and file extension
+      const allowedTypes = ['image/', 'video/'];
+      const allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'mp4', 'avi', 'mov', 'mkv'];
+
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      const hasValidMimeType = allowedTypes.some(type => file.type.startsWith(type));
+      const hasValidExtension = allowedExtensions.includes(fileExtension);
+
+      if (!hasValidMimeType && !hasValidExtension)
+      {
+        showError('Invalid file type. Please upload an image or video file.');
+        return;
+      }
+
+      uploadFile(file);
+    }
+
+    function uploadFile(file)
+    {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Show loading state
+      loading.style.display = 'block';
+      progressContainer.style.display = 'block';
+      resultsSection.style.display = 'none';
+      hideMessages();
+
+      // Simulate progress
+      let progress = 0;
+      const progressInterval = setInterval(() =>
+      {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90;
+        progressFill.style.width = progress + '%';
+      }, 200);
+
+      fetch('/upload', {
+        method: 'POST',
+        body: formData
+      })
+        .then(response =>
+        {
+          if (!response.ok)
+          {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          return response.json();
+        })
+        .then(data =>
+        {
+          clearInterval(progressInterval);
+          progressFill.style.width = '100%';
+
+          setTimeout(() =>
+          {
+            loading.style.display = 'none';
+            progressContainer.style.display = 'none';
+
+            if (data.success)
+            {
+              showResults(data.results);
+              showSuccess(data.message);
+            } else
+            {
+              showError(data.error || 'Unknown error occurred');
+            }
+          }, 500);
+        })
+        .catch(error =>
+        {
+          clearInterval(progressInterval);
+          loading.style.display = 'none';
+          progressContainer.style.display = 'none';
+
+          console.error('Upload error:', error);
+
+          if (error.message.includes('JSON'))
+          {
+            showError('Server error: Invalid response from server. Please try again.');
+          } else
+          {
+            showError('Upload failed: ' + error.message);
+          }
+        });
+    }
+
+    function showResults(results)
+    {
+      resultsSection.style.display = 'block';
+
+      // Handle image results
+      if (results.image_data)
+      {
+        document.getElementById('resultImage').src = results.image_data;
+        document.getElementById('resultImage').style.display = 'block';
+        document.getElementById('videoResult').style.display = 'none';
+      }
+
+      // Handle video results
+      if (results.video_url)
+      {
+        document.getElementById('resultImage').style.display = 'none';
+        document.getElementById('videoResult').style.display = 'block';
+        document.getElementById('downloadVideo').href = results.video_url;
+      }
+
+      // Show detections
+      const detectionList = document.getElementById('detectionList');
+      detectionList.innerHTML = '';
+
+      if (results.detections && results.detections.length > 0)
+      {
+        results.detections.forEach(detection =>
+        {
+          const li = document.createElement('li');
+          li.className = 'detection-item';
+          li.innerHTML = `
+                        <h4>Pothole Detection</h4>
+                        <p><strong>Depth:</strong> ${detection.depth}</p>
+                        <p><strong>Category:</strong> ${detection.category}</p>
+                        <p><strong>Confidence:</strong> ${detection.confidence}</p>
+                        <p><strong>Size:</strong> ${detection.size}</p>
+                    `;
+          detectionList.appendChild(li);
+        });
+      } else
+      {
+        detectionList.innerHTML = '<li class="detection-item">No potholes detected</li>';
+      }
+
+      // Show statistics
+      if (results.statistics)
+      {
+        const statsGrid = document.getElementById('statsGrid');
+        statsGrid.innerHTML = '';
+
+        const totalCard = document.createElement('div');
+        totalCard.className = 'stat-card';
+        totalCard.innerHTML = `
+                    <div class="stat-number">${results.statistics.total_detections}</div>
+                    <div class="stat-label">Total Detections</div>
+                `;
+        statsGrid.appendChild(totalCard);
+
+        Object.entries(results.statistics.categories).forEach(([category, stats]) =>
+        {
+          if (stats.count > 0)
+          {
+            const card = document.createElement('div');
+            card.className = 'stat-card';
+            card.innerHTML = `
+                            <div class="stat-number">${stats.count}</div>
+                            <div class="stat-label">${category.replace('_', ' ').toUpperCase()}</div>
+                        `;
+            statsGrid.appendChild(card);
+          }
+        });
+      }
+
+      // Set download links
+      if (results.download_url)
+      {
+        document.getElementById('downloadCsv').href = results.download_url;
+      }
+      if (results.csv_url)
+      {
+        document.getElementById('downloadCsv').href = results.csv_url;
+      }
+      if (results.zip_url)
+      {
+        document.getElementById('downloadZip').href = results.zip_url;
+      }
+    }
+
+    function showError(message)
+    {
+      errorMessage.textContent = message;
+      errorMessage.style.display = 'block';
+    }
+
+    function showSuccess(message)
+    {
+      successMessage.textContent = message;
+      successMessage.style.display = 'block';
+    }
+
+    function hideMessages()
+    {
+      errorMessage.style.display = 'none';
+      successMessage.style.display = 'none';
+    }
+  </script>
+</body>
+
+</html>

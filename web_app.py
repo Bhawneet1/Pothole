@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file, url_for
+from werkzeug.utils import secure_filename
 import os
 import cv2
 import numpy as np
@@ -7,32 +8,24 @@ from ultralytics import YOLO
 import logging
 from datetime import datetime
 import csv
-import glob
-from collections import deque
-import random
 import base64
-import io
-from PIL import Image
-import tempfile
 import zipfile
-from werkzeug.utils import secure_filename
-
 from simple_config_v2 import *
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
+
+# Configuration
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['OUTPUT_FOLDER'] = 'web_output'
 
-# Ensure directories exist
+# Create directories if they don't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
-
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 class WebPotholeDetector:
     def __init__(self, model_path=MODEL_PATH):
@@ -78,13 +71,6 @@ class WebPotholeDetector:
         
         # Apply depth constraints
         depth_final = max(MIN_DEPTH, min(MAX_DEPTH, depth_combined))
-        
-        # Add randomization
-        random_factor = random.uniform(0.9, 1.1)
-        depth_final = depth_final * random_factor
-        
-        # Ensure final depth is within bounds
-        depth_final = max(MIN_DEPTH, min(MAX_DEPTH, depth_final))
         
         return depth_final
 
@@ -352,21 +338,60 @@ def upload_file():
             output_video = os.path.join(app.config['OUTPUT_FOLDER'], f"processed_{filename}.avi")
             csv_path = detector.detect_potholes_video(filepath, output_video)
             
+            # Create MP4 version for web playback
+            output_mp4 = os.path.join(app.config['OUTPUT_FOLDER'], f"processed_{filename}.mp4")
+            try:
+                # Convert AVI to MP4 for better browser compatibility
+                cap = cv2.VideoCapture(output_video)
+                fps = int(cap.get(cv2.CAP_PROP_FPS))
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                out_mp4 = cv2.VideoWriter(output_mp4, fourcc, fps, (width, height))
+                
+                while True:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    out_mp4.write(frame)
+                
+                cap.release()
+                out_mp4.release()
+            except Exception as e:
+                logger.warning(f"Could not create MP4 version: {e}")
+                output_mp4 = output_video  # Fallback to AVI
+            
             # Create zip file with results
             zip_path = os.path.join(app.config['OUTPUT_FOLDER'], f"results_{filename}.zip")
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 zipf.write(output_video, os.path.basename(output_video))
+                if output_mp4 != output_video:
+                    zipf.write(output_mp4, os.path.basename(output_mp4))
                 zipf.write(csv_path, os.path.basename(csv_path))
             
             stats = detector.get_statistics()
+            
+            # Create detection summary for video
+            detections_summary = []
+            if stats['total_detections'] > 0:
+                for category, cat_stats in stats['categories'].items():
+                    if cat_stats['count'] > 0:
+                        detections_summary.append({
+                            'depth': f"Variable (see CSV)",
+                            'category': category,
+                            'confidence': f"See CSV for details",
+                            'size': f"{cat_stats['count']} detections"
+                        })
             
             return jsonify({
                 'success': True,
                 'message': 'Video processed successfully',
                 'results': {
-                    'video_url': url_for('download_file', filename=f"processed_{filename}.avi"),
+                    'video_url': url_for('download_file', filename=f"processed_{filename}.mp4" if output_mp4 != output_video else f"processed_{filename}.avi"),
                     'csv_url': url_for('download_file', filename=os.path.basename(csv_path)),
                     'zip_url': url_for('download_file', filename=f"results_{filename}.zip"),
+                    'detections': detections_summary,
                     'statistics': stats
                 }
             })
@@ -415,6 +440,11 @@ def upload_file():
 @app.route('/download/<filename>')
 def download_file(filename):
     return send_file(os.path.join(app.config['OUTPUT_FOLDER'], filename), as_attachment=True)
+
+@app.route('/video/<filename>')
+def serve_video(filename):
+    """Serve video files for inline playback"""
+    return send_file(os.path.join(app.config['OUTPUT_FOLDER'], filename), mimetype='video/mp4')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

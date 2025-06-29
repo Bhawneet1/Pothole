@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p uploads web_output
+RUN mkdir -p uploads output web_output
 
 # Expose port
 EXPOSE 5000
@@ -31,4 +31,4 @@ ENV FLASK_APP=web_app.py
 ENV FLASK_ENV=production
 
 # Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "web_app:app"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "web_app:app"] 
